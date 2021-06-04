@@ -120,7 +120,8 @@ describe("EPNSCoreV1 tests", function () {
     EPNSCoreV1Proxy = null
   });
 
-  describe("Testing subscribe realted functions", function(){
+ 
+ describe("Testing subscribe realted functions", function(){
         /**
      * "subscribe" Function CHECKPOINTS
      *  Should only be called for Activated Channels
@@ -130,6 +131,7 @@ describe("EPNSCoreV1 tests", function () {
      * Should update the Channel's Subscription Details in the contract
      * Should update the FAIRSHARE COUNTS
     //  */
+
     describe("Testing the Base SUBSCRIBE Function", function(){ 
       const CHANNEL_TYPE = 2;
       const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
@@ -382,7 +384,7 @@ describe("EPNSCoreV1 tests", function () {
      * Should update the FAIRSHARE COUNTS correctly
      */
 
-    describe("Testing the subscribeDelegated function", function(){
+  describe("Testing the subscribeDelegated function", function(){
       const CHANNEL_TYPE = 2;
       const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
   
@@ -490,7 +492,8 @@ describe("EPNSCoreV1 tests", function () {
      * Should  execute Subscribe Function and EMit events as expected
      * Should update the FAIRSHARE COUNTS correctly
      */
-    describe("Testing the subscribeWithPublicKeyDelegated function", function(){
+  
+  describe("Testing the subscribeWithPublicKeyDelegated function", function(){
       const CHANNEL_TYPE = 2;
       const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
   
@@ -506,7 +509,7 @@ describe("EPNSCoreV1 tests", function () {
       })
   
 
-     it("Function should only be called for ACTIVATED CHANNELS", async function () {
+       it("Function should only be called for ACTIVATED CHANNELS", async function () {
       await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).deactivateChannel();
         const publicKey = await getPubKey(CHANNEL_CREATORSIGNER)
         
@@ -660,9 +663,152 @@ describe("EPNSCoreV1 tests", function () {
           .to.emit(EPNSCoreV1Proxy, 'Subscribe')
           .withArgs(CHANNEL_CREATOR, BOB)
       });
-
- 
-
+    });
   });
+
+
+   /**
+     * "subscribeWithPublicKey" Function CHECKPOINTS
+     * Should only be called for Activated Channels
+     * Should only be called for NonGraylistedChannel Channels
+     * Should Charge DELEGATED_CONTRACT_FEES amount from the Channel_Creator
+     * Should add the charged DELEGATED_CONTRACT_FEES to the Owner's DAI Funds
+     * * Function should revert if user is already subscribed
+     * Should  execute Subscribe Function and EMit events as expected
+     * Should update the FAIRSHARE COUNTS correctly
+     */
+  
+    describe("Testing subscribeWithPublicKey", function(){
+      const CHANNEL_TYPE = 2;
+      const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
+  
+      beforeEach(async function(){
+        await EPNSCoreV1Proxy.connect(ADMINSIGNER).addToChannelizationWhitelist(CHANNEL_CREATOR, {gasLimit: 500000});
+      
+        await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
+        await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+      })
+  
+      it("should revert subscribe if channels are deactivated", async function () {
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).deactivateChannel();
+        const publicKey = await getPubKey(BOBSIGNER)
+        
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+        await expect(tx).to.be.revertedWith("Channel deactivated or doesn't exists");
+      });
+
+      it("should revert if already subscribed", async function () {
+        await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
+        const publicKey = await getPubKey(BOBSIGNER)
+        
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+        
+        await expect(tx).to.be.revertedWith("Subscriber already Exists");
+      });
+
+      it("Should add user to epns contract when subscribing if new user", async function(){
+        const usersCountBefore = await EPNSCoreV1Proxy.usersCount()
+        
+        const publicKey = await getPubKey(BOBSIGNER)
+        
+        const tx = await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+        
+        const user = await EPNSCoreV1Proxy.users(BOB);
+        const usersCountAfter = await EPNSCoreV1Proxy.usersCount()
+
+        expect(user.userStartBlock).to.equal(tx.blockNumber);
+        expect(user.userActivated).to.equal(true);
+
+        expect(usersCountBefore.add(1)).to.equal(usersCountAfter);
+      });
+
+      it("Should broadcast user public key when subscribing to channel", async function(){
+        const publicKey = await getPubKey(BOBSIGNER)
+        await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+        const user = await EPNSCoreV1Proxy.users(BOB)
+
+        expect(user.publicKeyRegistered).to.equal(true);
+      });
+
+      it("should emit PublicKeyRegistered event when user public key is not registered", async function(){
+        const publicKey = await getPubKey(BOBSIGNER)
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+
+        await expect(tx)
+          .to.emit(EPNSCoreV1Proxy, 'PublicKeyRegistered')
+          .withArgs(BOB, ethers.utils.hexlify(publicKey.slice(1)))
+      });
+
+      it("Should not broadcast user public key twice", async function(){
+        const publicKey = await getPubKey(BOBSIGNER)
+        await EPNSCoreV1Proxy.connect(BOBSIGNER).broadcastUserPublicKey(publicKey.slice(1));
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+
+        await expect(tx)
+          .to.not.emit(EPNSCoreV1Proxy, 'PublicKeyRegistered')
+          .withArgs(BOB, ethers.utils.hexlify(publicKey.slice(1)))
+      });
+
+      it("Should revert if broadcast user public does not match with sender address", async function(){
+        const publicKey = await getPubKey(CHANNEL_CREATORSIGNER)
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+
+        await expect(tx).to.be.revertedWith("Public Key Validation Failed")
+      });
+
+      it("should subscribe and change revelant details", async function () {
+        const userBefore = await EPNSCoreV1Proxy.users(BOB);
+        const channelBefore = await EPNSCoreV1Proxy.channels(CHANNEL_CREATOR);
+
+        const publicKey = await getPubKey(BOBSIGNER)
+        await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+
+        const userAfter = await EPNSCoreV1Proxy.users(BOB);
+        const channelAfter = await EPNSCoreV1Proxy.channels(CHANNEL_CREATOR);
+
+        expect(userAfter.subscribedCount).to.equal(userBefore.subscribedCount.add(1))
+        expect(channelAfter.memberCount).to.equal(channelBefore.memberCount.add(1))
+      });
+
+      it("should subscribe and update fair share values", async function(){
+        const channel = await EPNSCoreV1Proxy.channels(CHANNEL_CREATOR);
+
+        const _channelFairShareCount = channel.channelFairShareCount;
+        const _channelHistoricalZ = channel.channelHistoricalZ;
+        const _channelLastUpdate = channel.channelLastUpdate;
+        
+        const publicKey = await getPubKey(BOBSIGNER)
+        const tx = await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+        const blockNumber = tx.blockNumber;
+        
+        const { 
+          channelNewFairShareCount, 
+          channelNewHistoricalZ, 
+          channelNewLastUpdate, 
+        } = readjustFairShareOfSubscribers(SubscriberAction.SubscriberAdded, _channelFairShareCount, _channelHistoricalZ, _channelLastUpdate, bn(blockNumber));
+        
+        const channelNew = await EPNSCoreV1Proxy.channels(CHANNEL_CREATOR);
+
+        const _channelNewFairShareCountNew = channelNew.channelFairShareCount;
+        const _channelHistoricalZNew = channelNew.channelHistoricalZ;
+        const _channelLastUpdateNew = channelNew.channelLastUpdate;
+        
+        expect(_channelNewFairShareCountNew).to.equal(channelNewFairShareCount);
+        expect(_channelHistoricalZNew).to.equal(channelNewHistoricalZ);
+        expect(_channelLastUpdateNew).to.equal(channelNewLastUpdate);
+      });
+
+      it("should subscribe and emit Subscribe event", async function () {
+        const publicKey = await getPubKey(BOBSIGNER)
+        
+        const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).subscribeWithPublicKey(CHANNEL_CREATOR, publicKey.slice(1));
+
+        await expect(tx)
+          .to.emit(EPNSCoreV1Proxy, 'Subscribe')
+          .withArgs(CHANNEL_CREATOR, BOB)
+      });
+    });
 });
+
 });
