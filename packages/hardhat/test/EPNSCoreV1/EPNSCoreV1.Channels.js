@@ -13,7 +13,7 @@ const { calcChannelFairShare, calcSubscriberFairShare, getPubKey, bn, tokens, to
 
 use(solidity);
 
-describe("EPNSCoreV1 tests", function () {
+describe("EPNSCoreV1 Channel tests", function () {
   const AAVE_LENDING_POOL = "0x1c8756FD2B28e9426CDBDcC7E3c4d64fa9A54728";
   const DAI = "0xf80A32A835F79D7787E8a8ee5721D0fEaFd78108";
   const ADAI = "0xcB1Fe6F440c49E9290c3eb7f158534c2dC374201";
@@ -121,7 +121,7 @@ describe("EPNSCoreV1 tests", function () {
   });
 
  
- describe("Testing subscribe realted functions", function(){
+ describe("Testing Channel realted functions", function(){
         /**
      * "createChannelWithFees" Function CHECKPOINTS
      * Should revert if User is already a CHannel
@@ -135,7 +135,8 @@ describe("EPNSCoreV1 tests", function () {
      * AddChannel Event should be emitted
      **/
 
-    describe("Testing the Base SUBSCRIBE Function", function(){ 
+    describe("Testing the Base SUBSCRIBE Function", function()
+    { 
         const CHANNEL_TYPE = 2;
         const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
     
@@ -143,7 +144,7 @@ describe("EPNSCoreV1 tests", function () {
           await EPNSCoreV1Proxy.addToChannelizationWhitelist(CHANNEL_CREATOR);
           await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
           await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        });
+       });
         // Modifier Based Checks
         it("Should revert if User is already a CHANNEL", async function () {
           const CHANNEL_TYPE = 2;
@@ -325,8 +326,36 @@ describe("EPNSCoreV1 tests", function () {
           .to.emit(EPNSCoreV1Proxy, 'AddChannel')
           .withArgs(CHANNEL_CREATOR, CHANNEL_TYPE, ethers.utils.hexlify(testChannel))
       });
-
-
     });
-  });
+    describe("Testing deactivateChannel", function(){
+      const CHANNEL_TYPE = 2;
+      
+      beforeEach(async function(){
+          const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
+
+        await EPNSCoreV1Proxy.addToChannelizationWhitelist(CHANNEL_CREATOR);
+        await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
+        await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel);
+      });
+
+      it("should revert if channel already deactivated", async function () {
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).deactivateChannel();
+        const tx = EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).deactivateChannel();
+
+        await expect(tx).to.be.revertedWith("Channel deactivated or doesn't exists");
+      });
+  
+      it("should deactivate channel", async function () {
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).deactivateChannel();
+  
+        const channel = await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).channels(CHANNEL_CREATOR);
+        expect(channel[1]).to.equal(true);
+      });
+    });
+
+
+
+
+});
 });
