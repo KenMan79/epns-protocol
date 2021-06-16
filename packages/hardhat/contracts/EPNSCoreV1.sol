@@ -126,12 +126,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         mapping(address => uint) memberLastUpdate;
     }
 
-    /* Create for testnet strict owner only channel whitelist
-     * Will not be available on mainnet since that has real defi involed, use staging contract
-     * for developers looking to try on hand
-    */
-    mapping(address => bool) channelizationWhitelist;
-
     // To keep track of channels
     mapping(address => Channel) public channels;
     mapping(uint => address) public mapAddressChannels;
@@ -143,7 +137,9 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     // To keep track of interest claimed and interest in wallet
     mapping(address => uint) public usersInterestClaimed;
     mapping(address => uint) public usersInterestInWallet;
-
+    
+    // Delegated Notifications: Mapping to keep track of addresses allowed to send notifications on Behalf of a Channel
+    mapping(address => mapping (address => bool)) public delegated_NotificationSenders;
 
     /**
         Address Lists
@@ -167,7 +163,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         For maintaining the #DeFi finances
     */
     uint public poolFunds;
-    uint public ownerDaiFunds;
 
     uint public REFERRAL_CODE;
 
@@ -203,6 +198,10 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
 
     // Withdrawl Related
     event Withdrawal(address indexed to, address token, uint amount);
+
+    // Addition/Removal of Delegete Events
+    event AddDelegate(address channel, address delegate);
+    event RemoveDelegate(address channel, address delegate);
 
     /* ***************
     * INITIALIZER,
@@ -244,8 +243,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         For maintaining the #DeFi finances
         */
         poolFunds = 0; // Always in DAI
-        ownerDaiFunds = 0;
-
         // Add EPNS Channels
         // First is for all users
         // Second is all channel alerter, amount deposited for both is 0
@@ -265,15 +262,15 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     }
 
     receive() external payable {}
-
-    fallback() external {
-        console.logString('in fallback of core');
-    }
-
     // Modifiers
 
     modifier onlyGov() {
         require (msg.sender == governance, "EPNSCore::onlyGov, user is not governance");
+        _;
+    }
+
+    modifier onlyAllowedDelegates(address _channel, address _notificationSender) {
+        require(delegated_NotificationSenders[_channel][_notificationSender], "Not authorised to send messages");
         _;
     }
 
@@ -340,14 +337,16 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         governance = _newGovernance;
     }
 
-    /// @dev Testnet only function to enable owner permission for channelizationWhitelist addition
-    function addToChannelizationWhitelist(address _addr) external onlyGov {
-        channelizationWhitelist[_addr] = true;
+    /// @dev allow other addresses to send notifications using your channel
+    function addDelegate(address _delegate) external onlyChannelOwner(msg.sender) {        
+        delegated_NotificationSenders[msg.sender][_delegate] = true;
+        emit AddDelegate(msg.sender, _delegate);
     }
 
-    /// @dev Testnet only function  to enable owner permission for channelizationWhitelist removal
-    function removeFromChannelizationWhitelist(address _addr) external onlyGov {
-        channelizationWhitelist[_addr] = false;
+    /// @dev revoke addresses' permission to send notifications on your behalf
+    function removeDelegate(address _delegate) external onlyChannelOwner(msg.sender) {
+        delegated_NotificationSenders[msg.sender][_delegate] = false;
+        emit RemoveDelegate(msg.sender, _delegate);
     }
 
     /// @dev Performs action by the user themself to broadcast their public key
@@ -415,34 +414,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     /// @dev Deactivate channel
     function deactivateChannel() onlyActivatedChannels(msg.sender) external {
         channels[msg.sender].deactivated = true;
-    }
-
-    /// @dev delegate subscription to channel
-    function subscribeWithPublicKeyDelegated(
-        address _channel,
-        address _user,
-    bytes calldata _publicKey
-    ) external onlyActivatedChannels(_channel) onlyNonGraylistedChannel(_channel, _user) {
-        // Take delegation fees
-        _takeDelegationFees();
-
-        // Will save gas as it prevents calldata to be copied unless need be
-        if (!users[_user].publicKeyRegistered) {
-        // broadcast it
-        _broadcastPublicKey(_user, _publicKey);
-        }
-
-        // Call actual subscribe
-        _subscribe(_channel, _user);
-    }
-
-    /// @dev subscribe to channel delegated
-    function subscribeDelegated(address _channel, address _user) external onlyActivatedChannels(_channel) onlyNonGraylistedChannel(_channel, _user) {
-        // Take delegation fees
-        _takeDelegationFees();
-
-        // Call actual subscribe
-        _subscribe(_channel, _user);
     }
 
     /// @dev subscribe to channel with public key
@@ -598,19 +569,18 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         emit SendNotification(msg.sender, _recipient, _identity);
     }
 
-
-    /// @dev to withraw funds coming from delegate fees
-    function withdrawDaiFunds() external onlyGov {
-        // Get and transfer funds
-        uint funds = ownerDaiFunds;
-        IERC20(daiAddress).safeTransferFrom(address(this), msg.sender, funds);
-
-        // Rest funds to 0
-        ownerDaiFunds = 0;
-
-        // Emit Evenet
-        emit Withdrawal(msg.sender, daiAddress, funds);
+     /// @dev to send message to reciepient of a group
+    function sendNotificationAsDelegate(
+        address _channel,
+        address _recipient,
+        bytes calldata _identity
+    ) external onlyAllowedDelegates(_channel,msg.sender){
+        // Emit the message out
+        emit SendNotification(_channel, _recipient, _identity);
     }
+
+
+
 
     /// @dev to withraw funds coming from donate
     function withdrawEthFunds() external onlyGov {
@@ -835,12 +805,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
             // Call actual subscribe, owner channel
             _subscribe(governance, _channel);
         }
-        // If channel owner is a new user and is creating the Channel through createChannelWithFeesAndPublicKey function, then execute the following IF Statement
-        if(users[_channel].publicKeyRegistered){
-            // Call actual subscribe, owner channel
-            _subscribe(governance, _channel);
-        }
-
         // All Channels are subscribed to EPNS Alerter as well, unless it's the EPNS Alerter channel iteself
         if (_channel != 0x0000000000000000000000000000000000000000) {
             _subscribe(0x0000000000000000000000000000000000000000, _channel);
@@ -905,15 +869,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         emit Subscribe(_channel, _user);
     }
 
-    /// @dev charge delegation fee, small enough for serious players but thwarts bad actors
-    function _takeDelegationFees() private {
-        // Check and transfer funds
-        // require( IERC20(daiAddress).safeTransferFrom(msg.sender, address(this), DELEGATED_CONTRACT_FEES), "Insufficient Funds");
-        IERC20(daiAddress).safeTransferFrom(msg.sender, address(this), DELEGATED_CONTRACT_FEES);
 
-        // Add it to owner kitty
-        ownerDaiFunds = ownerDaiFunds.add(DELEGATED_CONTRACT_FEES);
-    }
 
     /// @dev deposit funds to pool
     function _depositFundsToPool(uint amount) private {
@@ -1078,35 +1034,5 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         channelNewLastUpdate = block.number;
     }
 
-     // Delegated Notifications: Mapping to keep track of addresses allowed to send notifications on Behalf of a Channel
-    mapping(address => mapping (address => bool)) public delegated_NotificationSenders;
-
-
-    event AddDelegate(address channel, address delegate);
-    event RemoveDelegate(address channel, address delegate);
-
-    modifier onlyAllowedDelegates(address _channel, address _notificationSender) {
-        require(delegated_NotificationSenders[_channel][_notificationSender], "Not authorised to send messages");
-        _;
-    }
-
-      /// @dev allow other addresses to send notifications using your channel
-    function addDelegate(address _delegate) external onlyChannelOwner(msg.sender) {        
-        delegated_NotificationSenders[msg.sender][_delegate] = true;
-        emit AddDelegate(msg.sender, _delegate);
-    }
-    /// @dev revoke addresses' permission to send notifications on your behalf
-    function removeDelegate(address _delegate) external onlyChannelOwner(msg.sender) {
-        delegated_NotificationSenders[msg.sender][_delegate] = false;
-        emit RemoveDelegate(msg.sender, _delegate);
-    }
-     /// @dev to send message to reciepient of a group
-    function sendNotificationAsDelegate(
-        address _channel,
-        address _recipient,
-        bytes calldata _identity
-    ) external onlyAllowedDelegates(_channel,msg.sender){
-        // Emit the message out
-        emit SendNotification(_channel, _recipient, _identity);
-    }
+    
 }
