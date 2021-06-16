@@ -141,7 +141,7 @@ describe("EPNSCoreV1 tests", function () {
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(DELEGATED_CONTRACT_FEES);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, DELEGATED_CONTRACT_FEES);
@@ -254,7 +254,7 @@ describe("EPNSCoreV1 tests", function () {
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(DELEGATED_CONTRACT_FEES);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, DELEGATED_CONTRACT_FEES);
@@ -306,7 +306,7 @@ describe("EPNSCoreV1 tests", function () {
         await expect(isGrayListed_after).to.be.equals(true)
      
 
-      }).timeout(12000);
+      }).timeout(14000);
 
       it(" Should Update Imperative On-Chain Information for User",async()=>{
         await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
@@ -360,14 +360,6 @@ describe("EPNSCoreV1 tests", function () {
         expect(_channelLastUpdateNew).to.equal(channelNewLastUpdate);
       }).timeout(200000);
 
-      // it("Withdrawl of Funds from the POOL Should work as expected", async function () {
-      //   const num = tokensBN(10)
-      //   const tx = EPNSCoreV1Proxy.connect(BOBSIGNER)._withdrawFundsFromPool(num);
-
-      //   await expect(tx)
-      //     .to.emit(EPNSCoreV1Proxy, 'Unsubscribe')
-      //     .withArgs(CHANNEL_CREATOR, BOB)
-      // })
 
 
     });
@@ -393,7 +385,7 @@ describe("EPNSCoreV1 tests", function () {
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(DELEGATED_CONTRACT_FEES);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, DELEGATED_CONTRACT_FEES);
@@ -502,7 +494,7 @@ describe("EPNSCoreV1 tests", function () {
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(DELEGATED_CONTRACT_FEES);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, DELEGATED_CONTRACT_FEES);
@@ -525,7 +517,7 @@ describe("EPNSCoreV1 tests", function () {
         
         const tx = EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).subscribeWithPublicKeyDelegated(CHANNEL_CREATOR, BOB, publicKey.slice(1));
         await expect(tx).to.be.revertedWith("Channel is graylisted");
-     }).timeout(12000);
+     }).timeout(20000);
 
      it("Should Charge DELEGATED_CONTRACT_FEES amount from the Channel_Creator and Store in Owner's DAI Funds", async ()=>{
        const channelCreatorDAIBalanceBefore = await MOCKDAI.balanceOf(CHANNEL_CREATOR);
@@ -542,7 +534,7 @@ describe("EPNSCoreV1 tests", function () {
   
         expect(channelCreatorDAIBalanceAfter).to.equal(channelCreatorDAIBalanceBefore.sub(DELEGATED_CONTRACT_FEES));
         expect(ownerDaiFundsAfter).to.equal(ownerDaiFundsBefore.add(DELEGATED_CONTRACT_FEES));
-     }).timeout(9000)
+     }).timeout(20000)
 
       it(" Function should revert if user is already subscribed", async function () {
         await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
@@ -667,16 +659,18 @@ describe("EPNSCoreV1 tests", function () {
   });
 
 
-   /**
-     * "subscribeWithPublicKey" Function CHECKPOINTS
-     * Should only be called for Activated Channels
-     * Should only be called for NonGraylistedChannel Channels
-     * Should Charge DELEGATED_CONTRACT_FEES amount from the Channel_Creator
-     * Should add the charged DELEGATED_CONTRACT_FEES to the Owner's DAI Funds
-     * * Function should revert if user is already subscribed
-     * Should  execute Subscribe Function and EMit events as expected
-     * Should update the FAIRSHARE COUNTS correctly
-     */
+
+
+  //  /**
+  //    * "subscribeWithPublicKey" Function CHECKPOINTS
+  //    * Should only be called for Activated Channels
+  //    * Should only be called for NonGraylistedChannel Channels
+  //    * Should Charge DELEGATED_CONTRACT_FEES amount from the Channel_Creator
+  //    * Should add the charged DELEGATED_CONTRACT_FEES to the Owner's DAI Funds
+  //    * * Function should revert if user is already subscribed
+  //    * Should  execute Subscribe Function and EMit events as expected
+  //    * Should update the FAIRSHARE COUNTS correctly
+  //    */
   
     describe("Testing subscribeWithPublicKey", function(){
       const CHANNEL_TYPE = 2;
@@ -687,7 +681,7 @@ describe("EPNSCoreV1 tests", function () {
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, {gasLimit: 2000000});
+        await EPNSCoreV1Proxy.connect(CHANNEL_CREATORSIGNER).createChannelWithFees(CHANNEL_TYPE, testChannel, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
       })
   
       it("should revert subscribe if channels are deactivated", async function () {
@@ -811,4 +805,3 @@ describe("EPNSCoreV1 tests", function () {
     });
 });
 
-});

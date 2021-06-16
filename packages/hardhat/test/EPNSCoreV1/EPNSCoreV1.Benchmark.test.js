@@ -4,6 +4,7 @@ const { bn, tokensBN } = require('../../helpers/utils');
 // We import Chai to use its asserting functions here.
 const { expect } = require("chai");
 
+
 describe("Benchmaking Contracts", async function () {
   // Get addresses
   let owner
@@ -15,6 +16,9 @@ describe("Benchmaking Contracts", async function () {
   const ADAI = "0xcB1Fe6F440c49E9290c3eb7f158534c2dC374201";
   const referralCode = 0;
   const delay = 0; // uint for the timelock delay
+  const ADD_CHANNEL_MIN_POOL_CONTRIBUTION = tokensBN(50)
+  const ADD_CHANNEL_MAX_POOL_CONTRIBUTION = tokensBN(250000 * 50)
+  const CHANNEL_TYPE = 2;
   // To load benchmarks
   let EPNSBenchmarks
 
@@ -37,7 +41,7 @@ describe("Benchmaking Contracts", async function () {
         args: [owner.address, AAVE_LENDING_POOL, DAI, ADAI, referralCode],
         functions: [
           {
-            call: `addToChannelizationWhitelist('${charles.address}')`,
+            call: `_createChannelWithFees('${charles.address}',${CHANNEL_TYPE},'${ADD_CHANNEL_MIN_POOL_CONTRIBUTION}')`,
             from: owner.address
           },
           {
