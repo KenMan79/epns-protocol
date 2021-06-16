@@ -395,10 +395,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     function createPromoterChannel() external {
       // EPNS PROMOTER CHANNEL
       require(!users[address(this)].channellized, "Contract has Promoter");
-
-      // NEED TO HAVE ALLOWANCE OF MINIMUM DAI
-      IERC20(daiAddress).approve(address(this), ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
-
+      
       // Check the allowance and transfer funds
       IERC20(daiAddress).transferFrom(msg.sender, address(this), ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
