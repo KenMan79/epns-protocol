@@ -278,12 +278,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         _;
     }
 
-    /// @dev Testnet only function to check permission from owner
-    modifier onlyChannelizationWhitelist(address _addr) {
-        require ((msg.sender == governance || channelizationWhitelist[_addr] == true), "User not in Channelization Whitelist");
-        _;
-    }
-
     modifier onlyValidUser(address _addr) {
         require(users[_addr].userActivated == true, "User not activated yet");
         _;
@@ -370,8 +364,8 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     }
 
     /// @dev Create channel with fees and public key
-    function createChannelWithFeesAndPublicKey(ChannelType _channelType, bytes calldata _identity, bytes calldata _publickey)
-        external onlyUserWithNoChannel onlyUserAllowedChannelType(_channelType) onlyChannelizationWhitelist(msg.sender) {
+    function createChannelWithFeesAndPublicKey(ChannelType _channelType, bytes calldata _identity, bytes calldata _publickey,uint256 _amount)
+        external onlyUserWithNoChannel onlyUserAllowedChannelType(_channelType) {
         // Save gas, Emit the event out
         emit AddChannel(msg.sender, _channelType, _identity);
 
@@ -384,17 +378,17 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         }
 
         // Bubble down to create channel
-        _createChannelWithFees(msg.sender, _channelType);
+        _createChannelWithFees(msg.sender, _channelType,_amount);
     }
 
     /// @dev Create channel with fees
-    function createChannelWithFees(ChannelType _channelType, bytes calldata _identity)
-      external onlyUserWithNoChannel onlyUserAllowedChannelType(_channelType) onlyChannelizationWhitelist(msg.sender) {
+    function createChannelWithFees(ChannelType _channelType, bytes calldata _identity,uint256 _amount)
+      external onlyUserWithNoChannel onlyUserAllowedChannelType(_channelType) {
         // Save gas, Emit the event out
         emit AddChannel(msg.sender, _channelType, _identity);
 
         // Bubble down to create channel
-        _createChannelWithFees(msg.sender, _channelType);
+        _createChannelWithFees(msg.sender, _channelType,_amount);
     }
 
     /// @dev One time, Create Promoter Channel
@@ -405,13 +399,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
       // NEED TO HAVE ALLOWANCE OF MINIMUM DAI
       IERC20(daiAddress).approve(address(this), ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
-      // Check if it's equal or above Channel Pool Contribution
-      require(
-          IERC20(daiAddress).allowance(msg.sender, address(this)) >= ADD_CHANNEL_MIN_POOL_CONTRIBUTION,
-          "Insufficient Funds"
-      );
-
-      // Check and transfer funds
+      // Check the allowance and transfer funds
       IERC20(daiAddress).transferFrom(msg.sender, address(this), ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
 
       // Then Add Promoter Channel
@@ -614,15 +602,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         emit SendNotification(msg.sender, _recipient, _identity);
     }
 
-    /// @dev to send message to reciepient of a group
-    function sendNotificationOverrideChannel(
-        address _channel,
-        address _recipient,
-        bytes calldata _identity
-    ) external onlyChannelOwner(msg.sender) onlyGov {
-        // Emit the message out
-        emit SendNotification(_channel, _recipient, _identity);
-    }
 
     /// @dev to withraw funds coming from delegate fees
     function withdrawDaiFunds() external onlyGov {
@@ -804,30 +783,26 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     }
 
     /// @dev add channel with fees
-    function _createChannelWithFees(address _channel, ChannelType _channelType) private {
-      // This module should be completely independent from the private _createChannel() so constructor can do it's magic
-      // Get the approved allowance
-      uint allowedAllowance = IERC20(daiAddress).allowance(_channel, address(this));
-
+    function _createChannelWithFees(address _channel, ChannelType _channelType,uint256 _amount) private {
       // Check if it's equal or above Channel Pool Contribution
+      // removed allowance -
       require(
-          allowedAllowance >= ADD_CHANNEL_MIN_POOL_CONTRIBUTION && allowedAllowance <= ADD_CHANNEL_MAX_POOL_CONTRIBUTION,
+          _amount >= ADD_CHANNEL_MIN_POOL_CONTRIBUTION && _amount <= ADD_CHANNEL_MAX_POOL_CONTRIBUTION,
           "Insufficient Funds or max ceiling reached"
       );
-
       // Check and transfer funds
-      IERC20(daiAddress).safeTransferFrom(_channel, address(this), allowedAllowance);
+      IERC20(daiAddress).safeTransferFrom(_channel, address(this), _amount);
 
       // Call create channel after fees transfer
-      _createChannelAfterTransferOfFees(_channel, _channelType, allowedAllowance);
+      _createChannelAfterTransferOfFees(_channel, _channelType, _amount);
     }
 
-    function _createChannelAfterTransferOfFees(address _channel, ChannelType _channelType, uint _allowedAllowance) private {
+    function _createChannelAfterTransferOfFees(address _channel, ChannelType _channelType, uint _amount) private {
       // Deposit funds to pool
-      _depositFundsToPool(_allowedAllowance);
+      _depositFundsToPool(_amount);
 
       // Call Create Channel
-      _createChannel(_channel, _channelType, _allowedAllowance);
+      _createChannel(_channel, _channelType, _amount);
     }
 
     /// @dev Create channel internal method that runs
@@ -869,6 +844,11 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
 
         // If this is a new user than subscribe them to EPNS Channel
         if (userAlreadyAdded == false && _channel != 0x0000000000000000000000000000000000000000) {
+            // Call actual subscribe, owner channel
+            _subscribe(governance, _channel);
+        }
+        // If channel owner is a new user and is creating the Channel through createChannelWithFeesAndPublicKey function, then execute the following IF Statement
+        if(users[_channel].publicKeyRegistered){
             // Call actual subscribe, owner channel
             _subscribe(governance, _channel);
         }
@@ -1108,5 +1088,37 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         channelNewFairShareCount = channelModCount;
         channelNewHistoricalZ = z;
         channelNewLastUpdate = block.number;
+    }
+
+     // Delegated Notifications: Mapping to keep track of addresses allowed to send notifications on Behalf of a Channel
+    mapping(address => mapping (address => bool)) public delegated_NotificationSenders;
+
+
+    event AddDelegate(address channel, address delegate);
+    event RemoveDelegate(address channel, address delegate);
+
+    modifier onlyAllowedDelegates(address _channel, address _notificationSender) {
+        require(delegated_NotificationSenders[_channel][_notificationSender], "Not authorised to send messages");
+        _;
+    }
+
+      /// @dev allow other addresses to send notifications using your channel
+    function addDelegate(address _delegate) external onlyChannelOwner(msg.sender) {        
+        delegated_NotificationSenders[msg.sender][_delegate] = true;
+        emit AddDelegate(msg.sender, _delegate);
+    }
+    /// @dev revoke addresses' permission to send notifications on your behalf
+    function removeDelegate(address _delegate) external onlyChannelOwner(msg.sender) {
+        delegated_NotificationSenders[msg.sender][_delegate] = false;
+        emit RemoveDelegate(msg.sender, _delegate);
+    }
+     /// @dev to send message to reciepient of a group
+    function sendNotificationAsDelegate(
+        address _channel,
+        address _recipient,
+        bytes calldata _identity
+    ) external onlyAllowedDelegates(_channel,msg.sender){
+        // Emit the message out
+        emit SendNotification(_channel, _recipient, _identity);
     }
 }
