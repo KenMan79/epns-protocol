@@ -10,8 +10,3 @@ Functions to test for Channels
 5. deactivateChannel
 6. _depositFundsToPool
 
-
-
-Small Function related to Channel
-a. addToChannelizationWhitelist
-b. removeToChannelizationWhitelist
