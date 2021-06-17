@@ -250,7 +250,6 @@ describe("EPNSCoreV1 tests", function () {
       const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
   
       beforeEach(async function(){
-        await EPNSCoreV1Proxy.connect(ADMINSIGNER).addToChannelizationWhitelist(CHANNEL_CREATOR, {gasLimit: 500000});
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
@@ -290,25 +289,9 @@ describe("EPNSCoreV1 tests", function () {
         await expect(tx)
           .to.emit(EPNSCoreV1Proxy, 'Unsubscribe')
           .withArgs(CHANNEL_CREATOR, BOB)
-      });
+      }).timeout(140000);;
 
-      it("Should mark Channel as GRAY LISTED for User",async()=>{
-          await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
-         // grayListed Mapping before UnSubscribing
-         const isGrayListed_before = await EPNSCoreV1Proxy.getGrayListedChannels(BOB,CHANNEL_CREATOR);
-          
-        await EPNSCoreV1Proxy.connect(BOBSIGNER).unsubscribe(CHANNEL_CREATOR);
-          // grayListed Mapping after UnSubscribing
-         const isGrayListed_after = await EPNSCoreV1Proxy.getGrayListedChannels(BOB,CHANNEL_CREATOR);
-
-
-        await expect(isGrayListed_before).to.be.equals(false)
-        await expect(isGrayListed_after).to.be.equals(true)
-     
-
-      }).timeout(14000);
-
-      it(" Should Update Imperative On-Chain Information for User",async()=>{
+  it(" Should Update Imperative On-Chain Information for User",async()=>{
         await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
         
         // Contract State Before Unsubscribing
@@ -805,4 +788,3 @@ describe("EPNSCoreV1 tests", function () {
       });
     });
 });
-
