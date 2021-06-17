@@ -1033,6 +1033,4 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         channelNewHistoricalZ = z;
         channelNewLastUpdate = block.number;
     }
-
-    
 }
