@@ -84,9 +84,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         // keep track of all subscribed channels
         mapping(address => uint) subscribed;
         mapping(uint => address) mapAddressSubscribed;
-
-        // keep track of greylist, useful for unsubscribe so the channel can't subscribe you back
-        mapping(address => bool) graylistedChannels;
     }
 
 
@@ -326,11 +323,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         _;
     }
 
-    modifier onlyNonGraylistedChannel(address _channel, address _user) {
-        require(!users[_user].graylistedChannels[_channel], "Channel is graylisted");
-        _;
-    }
-
     function transferGovernance(address _newGovernance) onlyGov public {
         require (_newGovernance != address(0), "EPNSCore::transferGovernance, new governance can't be none");
         require (_newGovernance != governance, "EPNSCore::transferGovernance, new governance can't be current governance");
@@ -439,9 +431,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     function unsubscribe(address _channel) external onlyValidChannel(_channel) onlyNonOwnerSubscribed(_channel, msg.sender) returns (uint ratio) {
         // Add the channel to gray list so that it can't subscriber the user again as delegated
         User storage user = users[msg.sender];
-
-        // Treat it as graylisting
-        user.graylistedChannels[_channel] = true;
 
         // first get ratio of earning
         ratio = 0;
