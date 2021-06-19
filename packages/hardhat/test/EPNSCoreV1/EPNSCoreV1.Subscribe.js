@@ -266,7 +266,7 @@ describe("EPNSCoreV1 tests", function () {
         const tx = EPNSCoreV1Proxy.connect(BOBSIGNER).unsubscribe(BOB);
         
         await expect(isChannnalized).to.be.equals(false)
-        await expect(tx).to.be.revertedWith("Channel doesn't Exists");
+        await expect(tx).to.be.revertedWith("Channel deactivated or doesn't exists");
       })
 
       it("Channel Owner should NOT be able to unsubscribe their own Channels", async()=>{
@@ -786,5 +786,6 @@ describe("EPNSCoreV1 tests", function () {
           .to.emit(EPNSCoreV1Proxy, 'Subscribe')
           .withArgs(CHANNEL_CREATOR, BOB)
       });
+   
     });
 });
