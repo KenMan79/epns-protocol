@@ -281,11 +281,6 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         _;
     }
 
-    modifier onlyValidChannel(address _channel) {
-        require(users[_channel].channellized, "Channel doesn't Exists");
-        _;
-    }
-
     modifier onlyActivatedChannels(address _channel) {
         require(users[_channel].channellized && !channels[_channel].deactivated, "Channel deactivated or doesn't exists");
         _;
@@ -428,8 +423,9 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
         _subscribe(_channel, msg.sender);
     }
 
-    /// @dev to unsubscribe from channel
-    function unsubscribe(address _channel) external onlyValidChannel(_channel) onlyNonOwnerSubscribed(_channel, msg.sender) returns (uint ratio) {
+
+    // @dev to unsubscribe from channel
+    function unsubscribe(address _channel) external onlyActivatedChannels(_channel) onlyNonOwnerSubscribed(_channel, msg.sender) returns (uint ratio) {
         // Add the channel to gray list so that it can't subscriber the user again as delegated
         User storage user = users[msg.sender];
 
