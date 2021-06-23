@@ -126,7 +126,6 @@ describe("EPNSCoreV1 tests", function () {
         const CHANNEL_TYPE = 2;
         const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
 
-        await EPNSCoreV1Proxy.connect(ADMINSIGNER).addToChannelizationWhitelist(CHANNEL_CREATOR, {gasLimit: 500000});
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
@@ -166,7 +165,6 @@ describe("EPNSCoreV1 tests", function () {
         const CHANNEL_TYPE = 2;
         const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
 
-        await EPNSCoreV1Proxy.connect(ADMINSIGNER).addToChannelizationWhitelist(CHANNEL_CREATOR, {gasLimit: 500000});
       
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).mint(ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
         await MOCKDAI.connect(CHANNEL_CREATORSIGNER).approve(EPNSCoreV1Proxy.address, ADD_CHANNEL_MIN_POOL_CONTRIBUTION);
