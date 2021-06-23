@@ -1082,7 +1082,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     
     event UserNotifcationSettingsAdded(address _channel, address _user, uint256 _notifID,string _notifSettings);
 
-    function subscribeToSpecificNotification(address _channel,uint256 _notifID,string calldata _notifSettings) external onlyValidUser(msg.sender){
+    function subscribeToSpecificNotification(address _channel,uint256 _notifID,string calldata _notifSettings) external onlySubscribed(_channel,msg.sender){
         string memory notifSetting = string(abi.encodePacked(Strings.toString(_notifID),_notifSettings));
         userToChannelNotifs[msg.sender][_channel] = notifSetting;
         emit UserNotifcationSettingsAdded(_channel,msg.sender,_notifID,notifSetting);
