@@ -1083,7 +1083,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     event UserNotifcationSettingsAdded(address _channel, address _user, uint256 _notifID,string _notifSettings);
 
     function subscribeToSpecificNotification(address _channel,uint256 _notifID,string calldata _notifSettings) external onlySubscribed(_channel,msg.sender){
-        string memory notifSetting = string(abi.encodePacked(Strings.toString(_notifID),_notifSettings));
+        string memory notifSetting = string(abi.encodePacked(Strings.toString(_notifID),"+",_notifSettings));
         userToChannelNotifs[msg.sender][_channel] = notifSetting;
         emit UserNotifcationSettingsAdded(_channel,msg.sender,_notifID,notifSetting);
     }
@@ -1093,7 +1093,7 @@ contract EPNSCoreV1 is Initializable, ReentrancyGuard  {
     event ChannelNotifcationSettingsAdded(address _channel, uint256 totalNotifOptions,string _notifSettings,string _notifDescription);
 
     function createChannelNotificationSettings(uint256 _notifOptions,string calldata _notifSettings, string calldata _notifDescription) external onlyActivatedChannels(msg.sender){
-        string memory notifSetting = string(abi.encodePacked(Strings.toString(_notifOptions),_notifSettings));
+        string memory notifSetting = string(abi.encodePacked(Strings.toString(_notifOptions),"+",_notifSettings));
         channelNotifSettings[msg.sender] = notifSetting;
         emit ChannelNotifcationSettingsAdded(msg.sender,_notifOptions,notifSetting,_notifDescription);  
     }
