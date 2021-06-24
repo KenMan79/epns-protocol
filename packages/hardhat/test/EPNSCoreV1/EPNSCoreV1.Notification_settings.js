@@ -157,7 +157,7 @@ describe("EPNSCoreV1 Channel tests", function () {
         it("Should update the userToChannelNotifs mapping with the right DATA", async function () {
           const CHANNEL_TYPE = 2;
           const notif_Id = 3;
-          const notifSettings_final = "31-1+2-40+3-0+4-98";
+          const notifSettings_final = "3+1-1+2-40+3-0+4-98";
           const userDetails_before = await EPNSCoreV1Proxy.users(BOB);
           await EPNSCoreV1Proxy.connect(BOBSIGNER).subscribe(CHANNEL_CREATOR);
           const userDetails_after = await EPNSCoreV1Proxy.users(BOB);
@@ -199,7 +199,7 @@ describe("EPNSCoreV1 Channel tests", function () {
         const testChannel = ethers.utils.toUtf8Bytes("test-channel-hello-world");
         const notif_options = 5;
         const notif_description = "Governance Notif + Liquidity Notif + Price Updates + AirDrop Notif + Other Notifs";
-        const channel_notifSettings = "1-0+2-50-[20,100]+1-1+2-78-[10,150]";
+        const channel_notifSettings = "1-0+2-50-20-100+1-1+2-78-10-150";
     
         beforeEach(async function(){
       
@@ -221,7 +221,7 @@ describe("EPNSCoreV1 Channel tests", function () {
 
         it("Should update the channelNotifSettings mapping with the right DATA", async function () {
           const CHANNEL_TYPE = 2;
-          const notifSettings_final = "51-0+2-50-[20,100]+1-1+2-78-[10,150]";
+          const notifSettings_final = "5+1-0+2-50-20-100+1-1+2-78-10-150";
 
           const userDetails = await EPNSCoreV1Proxy.users(CHANNEL_CREATOR);
 
@@ -234,7 +234,7 @@ describe("EPNSCoreV1 Channel tests", function () {
 
          it("Should Emit out the EVENTS with the right Parameters", async function (){
           const CHANNEL_TYPE = 2;
-          const notifSettings_final = "51-0+2-50-[20,100]+1-1+2-78-[10,150]";
+          const notifSettings_final = "5+1-0+2-50-20-100+1-1+2-78-10-150";
 
           const userDetails = await EPNSCoreV1Proxy.users(CHANNEL_CREATOR);
 
